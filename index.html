@@ -1,1 +1,1016 @@
+<!doctype html>
+<html lang="tr">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LGS Hedefim</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100%;
+      overflow: hidden;
+    }
+    html {
+      height: 100%;
+    }
+    .sidebar {
+      transition: all 0.3s ease;
+    }
+    .menu-item {
+      transition: all 0.2s ease;
+    }
+    .menu-item:hover {
+      transform: translateX(5px);
+    }
+    .card {
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .input-field {
+      transition: all 0.2s ease;
+    }
+    .input-field:focus {
+      transform: scale(1.02);
+    }
+    .btn {
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .loading {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body>
+  <div id="app" style="height: 100%; display: flex; flex-direction: column;"></div>
+  <script>
+    const defaultConfig = {
+      background_color: "#1a1a2e",
+      surface_color: "#16213e",
+      text_color: "#ffffff",
+      primary_action_color: "#0f3460",
+      secondary_action_color: "#000000",
+      platform_title: "LGS Hedefim",
+      welcome_message: "LGS'ye Hazırlan!",
+      font_family: "Segoe UI",
+      font_size: 16
+    };
 
+    let currentUser = null;
+    let currentView = 'login';
+    let allData = [];
+
+    // LocalStorage veri yönetimi
+    function saveData() {
+      localStorage.setItem('lgs_hedefim_data', JSON.stringify(allData));
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem('lgs_hedefim_data');
+      if (saved) {
+        allData = JSON.parse(saved);
+      }
+    }
+
+    function generateId() {
+      return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    async function createRecord(record) {
+      try {
+        const newRecord = { ...record, __backendId: generateId() };
+        allData.push(newRecord);
+        saveData();
+        return { isOk: true };
+      } catch (error) {
+        return { isOk: false, error };
+      }
+    }
+
+    async function updateRecord(record) {
+      try {
+        const index = allData.findIndex(r => r.__backendId === record.__backendId);
+        if (index !== -1) {
+          allData[index] = record;
+          saveData();
+          return { isOk: true };
+        }
+        return { isOk: false, error: 'Record not found' };
+      } catch (error) {
+        return { isOk: false, error };
+      }
+    }
+
+    async function deleteRecord(record) {
+      try {
+        const index = allData.findIndex(r => r.__backendId === record.__backendId);
+        if (index !== -1) {
+          allData.splice(index, 1);
+          saveData();
+          return { isOk: true };
+        }
+        return { isOk: false, error: 'Record not found' };
+      } catch (error) {
+        return { isOk: false, error };
+      }
+    }
+
+    function initApp() {
+      loadData();
+      renderLoginScreen();
+    }
+
+    function renderLoginScreen() {
+      const config = defaultConfig;
+      const customFont = config.font_family;
+      const baseSize = config.font_size;
+      const bgColor = config.background_color;
+      const surfaceColor = config.surface_color;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const secondaryColor = config.secondary_action_color;
+      const platformTitle = config.platform_title;
+      const welcomeMsg = config.welcome_message;
+
+      document.getElementById('app').innerHTML = `
+        <div style="height: 100%; background: ${bgColor}; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: ${customFont}, sans-serif; position: relative;">
+          <!-- Üst başlık -->
+          <div style="text-align: center; margin-bottom: 32px;">
+            <h1 style="color: ${textColor}; font-size: ${baseSize * 2.5}px; margin: 0 0 8px 0; font-weight: 800;">LGS Hedefim Ne?</h1>
+            <p style="color: ${textColor}; font-size: ${baseSize * 1.1}px; margin: 0; opacity: 0.8;">LGS'ye Hazırlan</p>
+          </div>
+
+          <!-- Giriş/Kayıt formları -->
+          <div style="width: 400px; max-width: 90%; display: flex; flex-direction: column; position: relative;">
+            <!-- Tab butonları -->
+            <div style="display: flex; background: ${surfaceColor}; margin-bottom: 20px; border-radius: 12px; padding: 4px;">
+              <button 
+                id="login-tab"
+                class="tab-btn active-tab"
+                style="flex: 1; padding: 12px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 0.9}px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;"
+              >
+                Giriş Yap
+              </button>
+              <button 
+                id="register-tab"
+                class="tab-btn"
+                style="flex: 1; padding: 12px; background: transparent; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 0.9}px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; opacity: 0.7;"
+              >
+                Kayıt Ol
+              </button>
+            </div>
+
+            <!-- Form container -->
+            <div style="position: relative; overflow: hidden; height: 450px;">
+              <!-- Giriş formu -->
+              <div id="login-form" class="form-panel" style="position: absolute; top: 0; left: 0; right: 0; background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); transform: translateX(0); opacity: 1; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                <h2 style="color: ${textColor}; font-size: ${baseSize * 1.5}px; margin: 0 0 24px 0; font-weight: 700; text-align: center;">Hoş Geldiniz</h2>
+                
+                <div style="margin-bottom: 20px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="login-username">Kullanıcı Adı</label>
+                  <input 
+                    type="text" 
+                    id="login-username" 
+                    class="input-field"
+                    placeholder="Kullanıcı adınızı girin"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="login-password">Şifre</label>
+                  <input 
+                    type="password" 
+                    id="login-password" 
+                    class="input-field"
+                    placeholder="Şifrenizi girin"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="login-user-type">Hesap Türü</label>
+                  <select 
+                    id="login-user-type"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  >
+                    <option value="student">Öğrenci</option>
+                    <option value="teacher">Öğretmen</option>
+                  </select>
+                </div>
+
+                <button 
+                  id="login-btn"
+                  class="btn"
+                  style="width: 100%; padding: 14px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+                >
+                  Giriş Yap
+                </button>
+
+                <div id="login-message" style="margin-top: 16px; text-align: center; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+              </div>
+
+              <!-- Kayıt formu -->
+              <div id="register-form" class="form-panel" style="position: absolute; top: 0; left: 0; right: 0; background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); transform: translateX(100%); opacity: 0; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+                <h2 style="color: ${textColor}; font-size: ${baseSize * 1.5}px; margin: 0 0 24px 0; font-weight: 700; text-align: center;">Hesap Oluştur</h2>
+                
+                <div style="margin-bottom: 20px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="register-username">Kullanıcı Adı</label>
+                  <input 
+                    type="text" 
+                    id="register-username" 
+                    class="input-field"
+                    placeholder="Kullanıcı adınızı girin"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="register-password">Şifre</label>
+                  <input 
+                    type="password" 
+                    id="register-password" 
+                    class="input-field"
+                    placeholder="En az 4 karakter"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="register-user-type">Hesap Türü</label>
+                  <select 
+                    id="register-user-type"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  >
+                    <option value="student">Öğrenci</option>
+                    <option value="teacher">Öğretmen</option>
+                  </select>
+                </div>
+
+                <button 
+                  id="register-btn"
+                  class="btn"
+                  style="width: 100%; padding: 14px; background: ${primaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+                >
+                  Kayıt Ol
+                </button>
+
+                <div id="register-message" style="margin-top: 16px; text-align: center; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Tab geçiş fonksiyonları
+      document.getElementById('login-tab').addEventListener('click', () => switchToLogin(config));
+      document.getElementById('register-tab').addEventListener('click', () => switchToRegister(config));
+      
+      document.getElementById('login-btn').addEventListener('click', handleLogin);
+      document.getElementById('register-btn').addEventListener('click', handleRegister);
+    }
+
+    function switchToLogin(config) {
+      const textColor = config.text_color;
+      const secondaryColor = config.secondary_action_color;
+      
+      // Tab butonları
+      document.getElementById('login-tab').style.background = secondaryColor;
+      document.getElementById('login-tab').style.opacity = '1';
+      document.getElementById('register-tab').style.background = 'transparent';
+      document.getElementById('register-tab').style.opacity = '0.7';
+      
+      // Form panelleri
+      document.getElementById('login-form').style.transform = 'translateX(0)';
+      document.getElementById('login-form').style.opacity = '1';
+      document.getElementById('register-form').style.transform = 'translateX(100%)';
+      document.getElementById('register-form').style.opacity = '0';
+    }
+
+    function switchToRegister(config) {
+      const textColor = config.text_color;
+      const secondaryColor = config.secondary_action_color;
+      
+      // Tab butonları
+      document.getElementById('register-tab').style.background = secondaryColor;
+      document.getElementById('register-tab').style.opacity = '1';
+      document.getElementById('login-tab').style.background = 'transparent';
+      document.getElementById('login-tab').style.opacity = '0.7';
+      
+      // Form panelleri
+      document.getElementById('register-form').style.transform = 'translateX(0)';
+      document.getElementById('register-form').style.opacity = '1';
+      document.getElementById('login-form').style.transform = 'translateX(-100%)';
+      document.getElementById('login-form').style.opacity = '0';
+    }
+
+    async function handleLogin() {
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      const userType = document.getElementById('login-user-type').value;
+      const messageEl = document.getElementById('login-message');
+
+      if (!username) {
+        messageEl.textContent = 'Lütfen kullanıcı adı girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      if (!password) {
+        messageEl.textContent = 'Lütfen şifre girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      const user = allData.find(u => u.username === username && u.user_type === userType && u.password === password);
+      
+      if (user) {
+        currentUser = user;
+        currentView = 'main';
+        renderMainApp();
+      } else {
+        messageEl.textContent = 'Kullanıcı adı veya şifre hatalı';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    async function handleRegister() {
+      const username = document.getElementById('register-username').value.trim();
+      const password = document.getElementById('register-password').value.trim();
+      const userType = document.getElementById('register-user-type').value;
+      const messageEl = document.getElementById('register-message');
+      const btn = document.getElementById('register-btn');
+
+      if (!username) {
+        messageEl.textContent = 'Lütfen kullanıcı adı girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      if (!password) {
+        messageEl.textContent = 'Lütfen şifre girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      if (password.length < 4) {
+        messageEl.textContent = 'Şifre en az 4 karakter olmalı';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      const existingUser = allData.find(u => u.username === username);
+      if (existingUser) {
+        messageEl.textContent = 'Bu kullanıcı adı zaten kullanılıyor';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.textContent = 'Kaydediliyor...';
+
+      const result = await createRecord({
+        user_type: userType,
+        username: username,
+        password: password,
+        class_id: '',
+        created_at: new Date().toISOString()
+      });
+
+      btn.classList.remove('loading');
+      btn.textContent = 'Kayıt Ol';
+
+      if (result.isOk) {
+        messageEl.textContent = 'Kayıt başarılı! Giriş sekmesine geçebilirsiniz.';
+        messageEl.style.color = '#51cf66';
+        document.getElementById('register-username').value = '';
+        document.getElementById('register-password').value = '';
+        
+        // Başarılı kayıttan sonra giriş sekmesine geç
+        setTimeout(() => {
+          const config = defaultConfig;
+          switchToLogin(config);
+        }, 1500);
+      } else {
+        messageEl.textContent = 'Kayıt başarısız oldu';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    function renderMainApp() {
+      const config = defaultConfig;
+      const customFont = config.font_family;
+      const baseSize = config.font_size;
+      const bgColor = config.background_color;
+      const surfaceColor = config.surface_color;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const secondaryColor = config.secondary_action_color;
+
+      const isTeacher = currentUser.user_type === 'teacher';
+      
+      document.getElementById('app').innerHTML = `
+        <div style="height: 100%; display: flex; background: ${bgColor}; font-family: ${customFont}, sans-serif;">
+          <!-- Sidebar -->
+          <div class="sidebar" style="width: 280px; background: ${surfaceColor}; padding: 24px; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.2);">
+            <div style="margin-bottom: 32px;">
+              <h2 style="color: ${textColor}; font-size: ${baseSize * 1.5}px; margin: 0 0 8px 0; font-weight: 700;">LGS Hedefim</h2>
+              <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.7;">${currentUser.username}</p>
+              <p style="color: ${textColor}; font-size: ${baseSize * 0.75}px; margin: 4px 0 0 0; opacity: 0.6;">${isTeacher ? '👨‍🏫 Öğretmen' : '👨‍🎓 Öğrenci'}</p>
+            </div>
+
+            <div style="flex: 1;">
+              <div class="menu-item" data-view="class" style="padding: 12px 16px; margin-bottom: 8px; background: ${primaryColor}; border-radius: 8px; cursor: pointer; color: ${textColor}; font-size: ${baseSize * 0.9}px; font-weight: 500;">
+                ${isTeacher ? '📚 Sınıf Oluştur' : '🎓 Sınıfa Katıl'}
+              </div>
+              <div class="menu-item" data-view="nets" style="padding: 12px 16px; margin-bottom: 8px; background: ${primaryColor}; border-radius: 8px; cursor: pointer; color: ${textColor}; font-size: ${baseSize * 0.9}px; font-weight: 500;">
+                📊 Net Takibi
+              </div>
+              ${isTeacher ? `
+              <div class="menu-item" data-view="evaluation" style="padding: 12px 16px; margin-bottom: 8px; background: ${primaryColor}; border-radius: 8px; cursor: pointer; color: ${textColor}; font-size: ${baseSize * 0.9}px; font-weight: 500;">
+                ✍️ Değerlendirme
+              </div>
+              ` : `
+              <div class="menu-item" data-view="notes" style="padding: 12px 16px; margin-bottom: 8px; background: ${primaryColor}; border-radius: 8px; cursor: pointer; color: ${textColor}; font-size: ${baseSize * 0.9}px; font-weight: 500;">
+                📝 Notlarım
+              </div>
+              `}
+            </div>
+
+            <button id="logout-btn" class="btn" style="padding: 12px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 0.9}px; font-weight: 600; cursor: pointer; margin-top: 16px;">
+              🚪 Çıkış Yap
+            </button>
+          </div>
+
+          <!-- Main Content -->
+          <div id="main-content" style="flex: 1; padding: 32px; overflow-y: auto;">
+          </div>
+        </div>
+      `;
+
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const view = e.currentTarget.getAttribute('data-view');
+          renderView(view);
+        });
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        currentUser = null;
+        currentView = 'login';
+        renderLoginScreen();
+      });
+
+      renderView('class');
+    }
+
+    function renderView(view) {
+      const config = defaultConfig;
+      const customFont = config.font_family;
+      const baseSize = config.font_size;
+      const bgColor = config.background_color;
+      const surfaceColor = config.surface_color;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const secondaryColor = config.secondary_action_color;
+
+      const content = document.getElementById('main-content');
+      const isTeacher = currentUser.user_type === 'teacher';
+
+      if (view === 'class') {
+        if (isTeacher) {
+          content.innerHTML = `
+            <div class="card" style="background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 600px;">
+              <h2 style="color: ${textColor}; font-size: ${baseSize * 1.8}px; margin: 0 0 24px 0; font-weight: 700;">Sınıf Oluştur</h2>
+              
+              <div style="margin-bottom: 20px;">
+                <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="class-name-input">Sınıf Adı</label>
+                <input 
+                  type="text" 
+                  id="class-name-input" 
+                  class="input-field"
+                  placeholder="Örn: 8-A LGS Hazırlık"
+                  style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                />
+              </div>
+
+              <button 
+                id="create-class-btn"
+                class="btn"
+                style="padding: 14px 32px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+              >
+                Sınıf Oluştur
+              </button>
+
+              <div id="class-message" style="margin-top: 16px; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+
+              <div style="margin-top: 32px;">
+                <h3 style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 16px 0; font-weight: 600;">Oluşturduğum Sınıflar</h3>
+                <div id="teacher-classes-list"></div>
+              </div>
+            </div>
+          `;
+
+          document.getElementById('create-class-btn').addEventListener('click', createClass);
+          displayTeacherClasses();
+        } else {
+          content.innerHTML = `
+            <div class="card" style="background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 600px;">
+              <h2 style="color: ${textColor}; font-size: ${baseSize * 1.8}px; margin: 0 0 24px 0; font-weight: 700;">Sınıfa Katıl</h2>
+              
+              <div style="margin-bottom: 20px;">
+                <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="class-id-input">Sınıf Kodu</label>
+                <input 
+                  type="text" 
+                  id="class-id-input" 
+                  class="input-field"
+                  placeholder="Öğretmeninizden aldığınız kodu girin"
+                  style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                />
+              </div>
+
+              <button 
+                id="join-class-btn"
+                class="btn"
+                style="padding: 14px 32px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+              >
+                Katıl
+              </button>
+
+              <div id="join-message" style="margin-top: 16px; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+
+              ${currentUser.class_id ? `
+              <div style="margin-top: 32px; padding: 20px; background: ${primaryColor}; border-radius: 12px;">
+                <h3 style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 8px 0; font-weight: 600;">Mevcut Sınıfım</h3>
+                <p style="color: ${textColor}; font-size: ${baseSize}px; margin: 0; opacity: 0.9;">${currentUser.class_name || 'Sınıf Adı Yok'}</p>
+                <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 8px 0 0 0; opacity: 0.7;">Kod: ${currentUser.class_id}</p>
+              </div>
+              ` : ''}
+            </div>
+          `;
+
+          document.getElementById('join-class-btn').addEventListener('click', joinClass);
+        }
+      } else if (view === 'nets') {
+        const subjects = ['Türkçe', 'Matematik', 'Fen Bilimleri', 'İnkılap', 'Din Kültürü', 'İngilizce'];
+        
+        content.innerHTML = `
+          <div class="card" style="background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <h2 style="color: ${textColor}; font-size: ${baseSize * 1.8}px; margin: 0 0 24px 0; font-weight: 700;">Net Takibi</h2>
+            
+            ${!isTeacher ? `
+            <div style="margin-bottom: 32px;">
+              <h3 style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 16px 0; font-weight: 600;">Yeni Net Girişi</h3>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                <div>
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="subject-select">Ders</label>
+                  <select 
+                    id="subject-select"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  >
+                    ${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}
+                  </select>
+                </div>
+                
+                <div>
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="correct-input">Doğru</label>
+                  <input 
+                    type="number" 
+                    id="correct-input" 
+                    min="0"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+                
+                <div>
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="wrong-input">Yanlış</label>
+                  <input 
+                    type="number" 
+                    id="wrong-input" 
+                    min="0"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+                
+                <div>
+                  <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="empty-input">Boş</label>
+                  <input 
+                    type="number" 
+                    id="empty-input" 
+                    min="0"
+                    class="input-field"
+                    style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+                  />
+                </div>
+              </div>
+
+              <button 
+                id="add-net-btn"
+                class="btn"
+                style="padding: 14px 32px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+              >
+                Net Ekle
+              </button>
+
+              <div id="net-message" style="margin-top: 16px; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+            </div>
+            ` : ''}
+
+            <div>
+              <h3 style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 16px 0; font-weight: 600;">${isTeacher ? 'Öğrenci Net Takibi' : 'Net Geçmişim'}</h3>
+              <div id="nets-list"></div>
+            </div>
+          </div>
+        `;
+
+        if (!isTeacher) {
+          document.getElementById('add-net-btn').addEventListener('click', addNet);
+        }
+        displayNets();
+      } else if (view === 'evaluation' && isTeacher) {
+        content.innerHTML = `
+          <div class="card" style="background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <h2 style="color: ${textColor}; font-size: ${baseSize * 1.8}px; margin: 0 0 24px 0; font-weight: 700;">Öğrenci Değerlendirme</h2>
+            
+            <div style="margin-bottom: 20px;">
+              <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="student-select">Öğrenci Seç</label>
+              <select 
+                id="student-select"
+                class="input-field"
+                style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; box-sizing: border-box;"
+              >
+                <option value="">Öğrenci seçin...</option>
+              </select>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <label style="color: ${textColor}; font-size: ${baseSize * 0.85}px; display: block; margin-bottom: 8px; font-weight: 500;" for="teacher-note-input">Değerlendirme Notu</label>
+              <textarea 
+                id="teacher-note-input" 
+                rows="4"
+                class="input-field"
+                placeholder="Öğrenci hakkında notlarınızı yazın..."
+                style="width: 100%; padding: 12px; background: ${bgColor}; border: 2px solid ${primaryColor}; border-radius: 8px; color: ${textColor}; font-size: ${baseSize}px; outline: none; resize: vertical; box-sizing: border-box;"
+              ></textarea>
+            </div>
+
+            <button 
+              id="save-note-btn"
+              class="btn"
+              style="padding: 14px 32px; background: ${secondaryColor}; color: ${textColor}; border: none; border-radius: 8px; font-size: ${baseSize * 1.1}px; font-weight: 600; cursor: pointer;"
+            >
+              Not Kaydet
+            </button>
+
+            <div id="eval-message" style="margin-top: 16px; color: ${textColor}; font-size: ${baseSize * 0.85}px;"></div>
+
+            <div style="margin-top: 32px;">
+              <h3 style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 16px 0; font-weight: 600;">Önceki Değerlendirmeler</h3>
+              <div id="evaluations-list"></div>
+            </div>
+          </div>
+        `;
+
+        populateStudentSelect();
+        document.getElementById('save-note-btn').addEventListener('click', saveEvaluation);
+        displayEvaluations();
+      } else if (view === 'notes' && !isTeacher) {
+        content.innerHTML = `
+          <div class="card" style="background: ${surfaceColor}; padding: 32px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <h2 style="color: ${textColor}; font-size: ${baseSize * 1.8}px; margin: 0 0 24px 0; font-weight: 700;">Öğretmen Notları</h2>
+            <div id="student-notes-list"></div>
+          </div>
+        `;
+
+        displayStudentNotes();
+      }
+    }
+
+    async function createClass() {
+      const className = document.getElementById('class-name-input').value.trim();
+      const messageEl = document.getElementById('class-message');
+      const btn = document.getElementById('create-class-btn');
+
+      if (!className) {
+        messageEl.textContent = 'Lütfen sınıf adı girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.textContent = 'Oluşturuluyor...';
+
+      const classId = 'CLASS_' + Date.now();
+      const result = await createRecord({
+        user_type: 'class',
+        class_id: classId,
+        class_name: className,
+        username: currentUser.username,
+        created_at: new Date().toISOString()
+      });
+
+      btn.classList.remove('loading');
+      btn.textContent = 'Sınıf Oluştur';
+
+      if (result.isOk) {
+        messageEl.textContent = `Sınıf oluşturuldu! Kod: ${classId}`;
+        messageEl.style.color = '#51cf66';
+        document.getElementById('class-name-input').value = '';
+        setTimeout(() => displayTeacherClasses(), 500);
+      } else {
+        messageEl.textContent = 'Sınıf oluşturulamadı';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    function displayTeacherClasses() {
+      const config = defaultConfig;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const baseSize = config.font_size;
+
+      const classes = allData.filter(d => d.user_type === 'class' && d.username === currentUser.username);
+      const listEl = document.getElementById('teacher-classes-list');
+
+      if (classes.length === 0) {
+        listEl.innerHTML = `<p style="color: ${textColor}; opacity: 0.6; font-size: ${baseSize * 0.9}px;">Henüz sınıf oluşturmadınız</p>`;
+        return;
+      }
+
+      listEl.innerHTML = classes.map(c => `
+        <div style="padding: 16px; background: ${primaryColor}; border-radius: 8px; margin-bottom: 12px;">
+          <p style="color: ${textColor}; font-size: ${baseSize}px; margin: 0 0 4px 0; font-weight: 600;">${c.class_name}</p>
+          <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.7;">Kod: ${c.class_id}</p>
+        </div>
+      `).join('');
+    }
+
+    async function joinClass() {
+      const classId = document.getElementById('class-id-input').value.trim();
+      const messageEl = document.getElementById('join-message');
+      const btn = document.getElementById('join-class-btn');
+
+      if (!classId) {
+        messageEl.textContent = 'Lütfen sınıf kodu girin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      // Veriyi yeniden yükle
+      loadData();
+      
+      const classExists = allData.find(d => d.user_type === 'class' && d.class_id === classId);
+      
+      if (!classExists) {
+        messageEl.textContent = 'Sınıf bulunamadı. Sınıf kodunu kontrol edin.';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.textContent = 'Katılınıyor...';
+
+      // Kullanıcı bilgilerini güncelle
+      currentUser.class_id = classId;
+      currentUser.class_name = classExists.class_name;
+
+      const result = await updateRecord(currentUser);
+
+      btn.classList.remove('loading');
+      btn.textContent = 'Katıl';
+
+      if (result.isOk) {
+        messageEl.textContent = 'Sınıfa başarıyla katıldınız!';
+        messageEl.style.color = '#51cf66';
+        document.getElementById('class-id-input').value = '';
+        setTimeout(() => renderView('class'), 1000);
+      } else {
+        messageEl.textContent = 'Sınıfa katılınamadı';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    async function addNet() {
+      const subject = document.getElementById('subject-select').value;
+      const correct = parseInt(document.getElementById('correct-input').value) || 0;
+      const wrong = parseInt(document.getElementById('wrong-input').value) || 0;
+      const empty = parseInt(document.getElementById('empty-input').value) || 0;
+      const messageEl = document.getElementById('net-message');
+      const btn = document.getElementById('add-net-btn');
+
+      btn.classList.add('loading');
+      btn.textContent = 'Ekleniyor...';
+
+      const result = await createRecord({
+        user_type: 'net',
+        student_username: currentUser.username,
+        subject: subject,
+        correct: correct,
+        wrong: wrong,
+        empty: empty,
+        exam_date: new Date().toISOString()
+      });
+
+      btn.classList.remove('loading');
+      btn.textContent = 'Net Ekle';
+
+      if (result.isOk) {
+        messageEl.textContent = 'Net başarıyla eklendi!';
+        messageEl.style.color = '#51cf66';
+        document.getElementById('correct-input').value = '';
+        document.getElementById('wrong-input').value = '';
+        document.getElementById('empty-input').value = '';
+        setTimeout(() => displayNets(), 500);
+      } else {
+        messageEl.textContent = 'Net eklenemedi';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    function displayNets() {
+      const config = defaultConfig;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const bgColor = config.background_color;
+      const baseSize = config.font_size;
+
+      const isTeacher = currentUser.user_type === 'teacher';
+      let nets = allData.filter(d => d.user_type === 'net');
+      
+      if (!isTeacher) {
+        nets = nets.filter(n => n.student_username === currentUser.username);
+      }
+
+      const listEl = document.getElementById('nets-list');
+
+      if (nets.length === 0) {
+        listEl.innerHTML = `<p style="color: ${textColor}; opacity: 0.6; font-size: ${baseSize * 0.9}px;">Henüz net kaydı yok</p>`;
+        return;
+      }
+
+      nets.sort((a, b) => new Date(b.exam_date) - new Date(a.exam_date));
+
+      listEl.innerHTML = nets.map(n => {
+        const netValue = n.correct - (n.wrong / 4);
+        const date = new Date(n.exam_date).toLocaleDateString('tr-TR');
+        
+        return `
+          <div style="padding: 16px; background: ${primaryColor}; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${bgColor};">
+            ${isTeacher ? `<p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0 0 8px 0; opacity: 0.8;">👤 ${n.student_username}</p>` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <p style="color: ${textColor}; font-size: ${baseSize * 1.1}px; margin: 0 0 4px 0; font-weight: 600;">${n.subject}</p>
+                <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.7;">📅 ${date}</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="color: ${textColor}; font-size: ${baseSize * 1.3}px; margin: 0 0 4px 0; font-weight: 700;">Net: ${netValue.toFixed(2)}</p>
+                <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.8;">✅ ${n.correct} ❌ ${n.wrong} ⚪ ${n.empty}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function populateStudentSelect() {
+      const students = allData.filter(d => d.user_type === 'student' && d.class_id);
+      const selectEl = document.getElementById('student-select');
+      
+      const options = students.map(s => 
+        `<option value="${s.username}">${s.username} - ${s.class_name || 'Sınıf Yok'}</option>`
+      ).join('');
+      
+      selectEl.innerHTML = '<option value="">Öğrenci seçin...</option>' + options;
+    }
+
+    async function saveEvaluation() {
+      const studentUsername = document.getElementById('student-select').value;
+      const note = document.getElementById('teacher-note-input').value.trim();
+      const messageEl = document.getElementById('eval-message');
+      const btn = document.getElementById('save-note-btn');
+
+      if (!studentUsername) {
+        messageEl.textContent = 'Lütfen öğrenci seçin';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      if (!note) {
+        messageEl.textContent = 'Lütfen değerlendirme notu yazın';
+        messageEl.style.color = '#ff6b6b';
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.textContent = 'Kaydediliyor...';
+
+      const result = await createRecord({
+        user_type: 'evaluation',
+        student_username: studentUsername,
+        teacher_note: note,
+        username: currentUser.username,
+        note_date: new Date().toISOString()
+      });
+
+      btn.classList.remove('loading');
+      btn.textContent = 'Not Kaydet';
+
+      if (result.isOk) {
+        messageEl.textContent = 'Değerlendirme kaydedildi!';
+        messageEl.style.color = '#51cf66';
+        document.getElementById('teacher-note-input').value = '';
+        setTimeout(() => displayEvaluations(), 500);
+      } else {
+        messageEl.textContent = 'Değerlendirme kaydedilemedi';
+        messageEl.style.color = '#ff6b6b';
+      }
+    }
+
+    function displayEvaluations() {
+      const config = defaultConfig;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const baseSize = config.font_size;
+
+      const evaluations = allData.filter(d => d.user_type === 'evaluation' && d.username === currentUser.username);
+      const listEl = document.getElementById('evaluations-list');
+
+      if (evaluations.length === 0) {
+        listEl.innerHTML = `<p style="color: ${textColor}; opacity: 0.6; font-size: ${baseSize * 0.9}px;">Henüz değerlendirme yok</p>`;
+        return;
+      }
+
+      evaluations.sort((a, b) => new Date(b.note_date) - new Date(a.note_date));
+
+      listEl.innerHTML = evaluations.map(e => {
+        const date = new Date(e.note_date).toLocaleDateString('tr-TR');
+        
+        return `
+          <div style="padding: 16px; background: ${primaryColor}; border-radius: 8px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+              <p style="color: ${textColor}; font-size: ${baseSize}px; margin: 0; font-weight: 600;">👤 ${e.student_username}</p>
+              <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.7;">📅 ${date}</p>
+            </div>
+            <p style="color: ${textColor}; font-size: ${baseSize * 0.9}px; margin: 0; line-height: 1.5;">${e.teacher_note}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function displayStudentNotes() {
+      const config = defaultConfig;
+      const textColor = config.text_color;
+      const primaryColor = config.primary_action_color;
+      const baseSize = config.font_size;
+
+      const notes = allData.filter(d => d.user_type === 'evaluation' && d.student_username === currentUser.username);
+      const listEl = document.getElementById('student-notes-list');
+
+      if (notes.length === 0) {
+        listEl.innerHTML = `<p style="color: ${textColor}; opacity: 0.6; font-size: ${baseSize * 0.9}px;">Henüz öğretmen notu yok</p>`;
+        return;
+      }
+
+      notes.sort((a, b) => new Date(b.note_date) - new Date(a.note_date));
+
+      listEl.innerHTML = notes.map(n => {
+        const date = new Date(n.note_date).toLocaleDateString('tr-TR');
+        
+        return `
+          <div style="padding: 20px; background: ${primaryColor}; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <p style="color: ${textColor}; font-size: ${baseSize * 1.1}px; margin: 0; font-weight: 600;">👨‍🏫 ${n.username}</p>
+              <p style="color: ${textColor}; font-size: ${baseSize * 0.85}px; margin: 0; opacity: 0.7;">📅 ${date}</p>
+            </div>
+            <p style="color: ${textColor}; font-size: ${baseSize}px; margin: 0; line-height: 1.6;">${n.teacher_note}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999639759778355c',t:'MTc2MjI4MTQ2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
